@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meal to Cart - bring your recipes, get one cart</title>
+<meta name="description" content="Paste the recipe links you already have. Answer one card about your week. Get a week of dinners, a list grouped by aisle, and a cart waiting at Walmart for you to check out.">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <h1 class="wordmark">Meal to Cart</h1>
+      <p class="store">Demo store: Walmart</p>
+    </div>
+    <p class="standfirst">Paste the recipe links you already have. Answer one card about your week. Get a plan, a list grouped by aisle, and one cart waiting at Walmart for you to open.</p>
+  </header>
+
+  <form id="week-form" novalidate>
+
+    <section class="beat" id="bring" aria-labelledby="bring-h">
+      <p class="beat-num" aria-hidden="true">01</p>
+      <div class="beat-body">
+        <h2 id="bring-h">Bring your recipes</h2>
+        <p class="lead">A link per line: a creator's site, a blog, a page you saved years ago. There is no cookbook inside this page. The links you paste are the only recipes it can plan with, and each one comes back with how confidently it was read.</p>
+
+        <div class="field field-wide">
+          <label for="links">Recipe links</label>
+          <textarea id="links" name="links" rows="4" spellcheck="false" autocomplete="off" aria-describedby="links-hint" placeholder="https://www.example.com/air-fryer-chicken-thighs&#10;https://www.example.com/lentil-soup"></textarea>
+          <p class="hint" id="links-hint">One per line. Up to 12 are read. If you paste more than 12, the rest are named as not read rather than quietly ignored.</p>
+        </div>
+
+        <div class="actions">
+          <button type="button" class="btn btn-quiet" id="read-links">Read these links</button>
+          <span class="actions-note">Nothing is sent anywhere until you press this.</span>
+        </div>
+
+        <div class="imports" id="import-results" aria-live="polite">
+          <p class="empty-note">No links read yet. Paste one per line above and press <strong>Read these links</strong>. Each link comes back with its title, its ingredient count, and a confidence between 0.00 and 1.00.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="beat" id="week" aria-labelledby="week-h">
+      <p class="beat-num" aria-hidden="true">02</p>
+      <div class="beat-body">
+        <h2 id="week-h">Tell us about your week</h2>
+        <p class="lead">One card, five answers. No account, nothing to install, and no step two.</p>
+
+        <div class="card">
+          <div class="card-group">
+            <h3 class="card-group-title">The shape of the week</h3>
+            <div class="rows rows-3">
+              <div class="field">
+                <label for="plan-type">Plan type</label>
+                <select id="plan-type" name="dinners" aria-describedby="plan-type-hint">
+                  <option value="5" selected>A full week - 5 dinners</option>
+                  <option value="3">A short week - 3 dinners</option>
+                  <option value="7">Every night - 7 dinners</option>
+                </select>
+                <p class="hint" id="plan-type-hint">Sets how many dinners get planned.</p>
+              </div>
+              <div class="field">
+                <label for="servings">Servings</label>
+                <input id="servings" name="servings" type="number" inputmode="numeric" min="1" max="10" step="1" value="2" aria-describedby="servings-hint">
+                <p class="hint" id="servings-hint">Each dinner serves this many.</p>
+              </div>
+              <div class="field">
+                <label for="budget">Weekly budget target</label>
+                <div class="money">
+                  <span class="money-sign" aria-hidden="true">$</span>
+                  <input id="budget" name="budget_weekly" type="number" inputmode="decimal" min="0" step="5" value="120" aria-describedby="budget-hint">
+                </div>
+                <p class="hint" id="budget-hint">A target, not a limit. The list is measured against it and never blocked by it.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="card-group">
+            <h3 class="card-group-title">What to leave out</h3>
+            <div class="rows rows-2">
+              <div class="field">
+                <label for="allergies">Allergies or foods to avoid</label>
+                <input id="allergies" name="allergies" type="text" autocomplete="off" aria-describedby="allergies-hint" placeholder="peanut, sesame...">
+                <p class="hint" id="allergies-hint">Comma separated. Anything matching comes out of the list and is named in the reasons panel, never removed quietly.</p>
+              </div>
+              <div class="field">
+                <label for="dislikes">Dislikes</label>
+                <input id="dislikes" name="dislikes" type="text" autocomplete="off" aria-describedby="dislikes-hint" placeholder="olives, fennel...">
+                <p class="hint" id="dislikes-hint">Same treatment as the list above: taken out and named, never hidden.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="beat" id="build" aria-labelledby="build-h">
+      <p class="beat-num" aria-hidden="true">03</p>
+      <div class="beat-body">
+        <h2 id="build-h">Build my week</h2>
+        <p class="lead">One request: your links and this card, sent to your own agent. It plans the dinners, works out what to buy, and hands back a cart for you to open.</p>
+
+        <div class="build">
+          <button type="submit" class="btn btn-primary" id="build-week">Build my week</button>
+          <p class="promise">Nothing is ordered without you. The link opens in your own browser and you check out.</p>
+        </div>
+
+        <p class="status" id="status" role="status" aria-live="polite"></p>
+
+        <div class="result" id="result">
+          <div class="empty" id="empty-state">
+            <p class="empty-title">No week built yet.</p>
+            <p class="empty-body">Paste at least one link above, then press <strong>Build my week</strong>. You get the dinners, the list grouped by aisle, and either a cart to open or the reason there is no cart.</p>
+          </div>
+
+          <details class="sample" id="sample-block" open>
+            <summary>Saved example run - not your links</summary>
+            <p class="sample-note">No agent has answered, so nothing here was built from your links. This is a saved run of the demo profile, kept in the page so the shape of a real result stays visible with nothing running. The titles, ingredient counts and confidences are the reader's own output; the aisles, the merged amounts and the reuse notes are the list builder's.</p>
+            <div id="sample-body"></div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+  </form>
+
+  <footer class="foot">
+    <details class="panel" id="agent-block">
+      <summary>Agent - where your links are sent</summary>
+      <div class="panel-body">
+        <p class="agent-state" id="agent-state" role="status" aria-live="polite">Checking for an agent at http://127.0.0.1:8787...</p>
+        <div class="field">
+          <label for="agent-url">Agent URL</label>
+          <input id="agent-url" name="agent_url" type="url" inputmode="url" spellcheck="false" autocomplete="off" aria-describedby="agent-hint" placeholder="http://127.0.0.1:8787">
+          <p class="hint" id="agent-hint">Everything this page sends goes to this one address and nowhere else. It is saved in this browser, not on a server.</p>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn-quiet" id="save-agent">Save and check</button>
+        </div>
+      </div>
+    </details>
+    <p class="foot-note">The agent runs on the machine that owns the store account, which is why this page can hold no account of its own and never checks out. Three files, opened from disk: no framework, no build step, no network except your own agent.</p>
+  </footer>
+
+</div>
+<script src="app.js"></script>
+</body>
+</html>

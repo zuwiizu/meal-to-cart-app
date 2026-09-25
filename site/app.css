@@ -1,0 +1,687 @@
+/* Meal to Cart - the page.
+ *
+ * Three files, no framework, no build step, no CDN. Opened from disk.
+ *
+ * The direction is locked: warm and calm, kitchen not enterprise. Mealime owns
+ * the spine (bring, tell us, build) and the single personalization card;
+ * AnyList owns the categorized list; Paprika owns "a link is the way in".
+ * What is ours is on the page itself: the links are the only recipes that
+ * exist, the week ends at a real cart rather than a printable list, and the
+ * lines that did not resolve are shown with their reasons.
+ *
+ * Two colours, two roles, no exceptions:
+ *   --accent  only for things you can act on (the build button, links, focus)
+ *   --ok/--warn  only for status (resolved, unresolved, under or over target)
+ * Nothing is filled with the accent. There is no gradient and no shadow. The
+ * page is separated by hairlines and the one interactive card is the form.
+ */
+
+:root {
+  --paper: #FBF8F3;
+  --ink: #1F1B16;
+  --muted: #6B6154;
+  --line: #E7DFD3;
+  --accent: #C2410C;
+  --ok: #15803D;
+  --warn: #B45309;
+
+  --card-radius: 14px;
+  --control-radius: 10px;
+  --chip-radius: 4px;
+
+  /* Two faces, two jobs: the words are set in the system sans, the numbers,
+     dates, quantities and prices in the system mono. The mono is what makes a
+     28-line list skimmable, and it is why the page reads like a well-set
+     receipt rather than a brochure. No webfont is loaded for either. */
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --rail: 84px;
+  --gap: 28px;
+  --content: 640px;
+  --wrap: 960px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: var(--wrap);
+  margin: 0 auto;
+  padding: 44px 24px 80px;
+}
+
+::selection { background: var(--accent); color: var(--paper); }
+
+/* Focus: visible, on the keyboard only, in the accent because focus is an
+   action. Offsets are small so a focused control is never clipped. */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------- masthead */
+
+.masthead { max-width: calc(var(--content) + var(--gap) + var(--rail)); }
+
+.masthead-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+
+.wordmark {
+  margin: 0;
+  font: 700 13px/1 var(--mono);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.store {
+  margin: 0;
+  font: 500 11px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.standfirst {
+  margin: 20px 0 0;
+  font-size: 19px;
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  max-width: 54ch;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------------- beats */
+
+.beat {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  border-top: 1px solid var(--line);
+  margin-top: 34px;
+  padding-top: 22px;
+}
+
+.beat-num {
+  margin: 0 0 6px;
+  font: 600 12px/1 var(--mono);
+  letter-spacing: 0.14em;
+  color: var(--muted);
+}
+
+.beat-body { max-width: var(--content); }
+
+@media (min-width: 820px) {
+  .beat {
+    grid-template-columns: var(--rail) minmax(0, 1fr);
+    column-gap: var(--gap);
+    margin-top: 44px;
+    padding-top: 24px;
+  }
+  .beat-num { margin: 5px 0 0; }
+  .masthead, .foot { padding-left: calc(var(--rail) + var(--gap)); }
+  .wrap { padding: 56px 28px 88px; }
+}
+
+h2 {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.25;
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
+}
+
+.lead {
+  margin: 10px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------------ fields */
+
+.field { display: flex; flex-direction: column; min-width: 0; }
+
+.field label {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-bottom: 6px;
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 54ch;
+  text-wrap: pretty;
+}
+
+input[type="text"],
+input[type="url"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  margin: 0;
+  padding: 10px 12px;
+  font: 400 15px/1.4 var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--muted);
+  border-radius: var(--control-radius);
+  touch-action: manipulation;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 96px;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+select {
+  padding-right: 34px;
+  background-image: none;
+  cursor: pointer;
+}
+
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.75; }
+
+input:disabled, select:disabled, textarea:disabled { opacity: 0.6; }
+
+.money { display: flex; align-items: center; gap: 8px; }
+.money-sign { font: 500 15px/1 var(--mono); color: var(--muted); }
+.money input { font-family: var(--mono); font-size: 14px; }
+
+.field-wide { margin-top: 18px; }
+
+/* ------------------------------------------------------------------- card */
+
+/* The only bordered container on the page, and it earns its border by being
+   the thing you fill in. Everything else is separated by hairlines. */
+.card {
+  margin-top: 20px;
+  display: grid;
+  gap: 26px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--card-radius);
+}
+
+.card-group-title {
+  margin: 0 0 14px;
+  font: 600 11px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.rows { display: grid; gap: 18px; }
+
+@media (min-width: 620px) {
+  .rows-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .rows-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+}
+
+/* ----------------------------------------------------------------- buttons */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 12px 18px;
+  font: 600 14px/1 var(--sans);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--muted);
+  border-radius: var(--control-radius);
+  cursor: pointer;
+  text-decoration: none;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(31, 27, 22, 0.08);
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.btn-quiet:hover { background: var(--line); border-color: var(--ink); }
+
+.btn-primary {
+  padding: 15px 24px;
+  font-size: 15px;
+  color: var(--paper);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.btn-primary:hover { background: var(--ink); border-color: var(--ink); }
+
+.btn:active { transform: translateY(1px); }
+
+.btn[disabled] { cursor: progress; opacity: 0.6; }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.actions-note { font-size: 12.5px; color: var(--muted); }
+
+.build { margin-top: 22px; }
+
+.promise {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: 46ch;
+}
+
+.status {
+  margin: 18px 0 0;
+  font: 400 13px/1.5 var(--mono);
+  color: var(--muted);
+  min-height: 0;
+}
+
+.status:empty { display: none; }
+
+/* ----------------------------------------------------------------- results */
+
+.result { margin-top: 26px; }
+
+.empty { border-top: 1px solid var(--line); padding-top: 18px; }
+
+.empty-title { margin: 0; font-size: 15px; font-weight: 600; }
+
+.empty-body {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 58ch;
+  text-wrap: pretty;
+}
+
+.empty-note {
+  margin: 16px 0 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 58ch;
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------- chips */
+
+.chip {
+  display: inline-block;
+  padding: 5px 7px;
+  font: 600 11px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: var(--chip-radius);
+  white-space: nowrap;
+}
+
+.chip-ok { color: var(--ok); border-color: var(--ok); }
+.chip-warn { color: var(--warn); border-color: var(--warn); }
+
+/* A dashed edge means provisional: a saved example, a state that is not live. */
+.chip-sample { border-style: dashed; }
+
+/* ---------------------------------------------------------- import results */
+
+.imports { margin-top: 22px; }
+
+.import-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+
+.import {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.import-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 14px;
+}
+
+.import-title { font-size: 15px; font-weight: 600; line-height: 1.35; }
+.import-title a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+.import-title a:hover { color: var(--ink); }
+.import-title-missing { color: var(--muted); font-weight: 400; font-style: normal; }
+
+.import-meta {
+  margin: 4px 0 0;
+  font: 400 12px/1.5 var(--mono);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.import-note {
+  margin: 8px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: 60ch;
+  text-wrap: pretty;
+}
+
+.import-note .note-tag {
+  font: 600 11px/1 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--warn);
+  margin-right: 8px;
+}
+
+/* The confidence number is the fact; the meter is the same fact at a glance. */
+.meter {
+  margin-top: 10px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.meter span { display: block; height: 100%; background: var(--ok); }
+.meter-warn span { background: var(--warn); }
+
+/* ------------------------------------------------------------- run header */
+
+.run-head { border-top: 1px solid var(--line); padding-top: 18px; }
+
+.run-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.run-where { font: 400 12px/1.5 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  margin: 14px 0 0;
+}
+
+.fact { display: flex; align-items: baseline; gap: 7px; }
+
+.fact dt {
+  font: 600 10.5px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.fact dd { margin: 0; font: 500 13px/1 var(--mono); }
+
+.block { margin-top: 30px; }
+
+.block-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.block-note {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 60ch;
+  text-wrap: pretty;
+}
+
+/* ------------------------------------------------------------------- plan */
+
+.plan { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+
+.plan li {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2px;
+  align-items: baseline;
+}
+
+@media (min-width: 620px) {
+  .plan li { grid-template-columns: 88px minmax(0, 1fr); gap: 14px; }
+}
+
+.day {
+  font: 600 11px/1.5 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dish { font-size: 15px; line-height: 1.4; }
+
+.dish-src {
+  display: block;
+  font: 400 12px/1.5 var(--mono);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------- the shopping list */
+
+.aisles { display: grid; gap: 24px; margin-top: 18px; }
+
+.aisle-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 7px;
+}
+
+.aisle-name {
+  font: 700 11px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.aisle-count { font: 400 11px/1 var(--mono); color: var(--muted); white-space: nowrap; }
+
+.lines { list-style: none; margin: 4px 0 0; padding: 0; }
+
+.line { padding: 6px 0; }
+
+.line-main { display: flex; align-items: baseline; gap: 10px; }
+
+.line-item { display: flex; align-items: baseline; flex: 1 1 auto; gap: 8px; min-width: 0; }
+
+.line-item span { flex: 0 1 auto; }
+
+/* Leader dots: the page's one printed-list flourish, and the reason a long
+   list still reads as a receipt. Decorative, so it carries no contrast duty. */
+.leader {
+  flex: 1 1 auto;
+  min-width: 14px;
+  border-bottom: 1px dotted var(--muted);
+  opacity: 0.4;
+  transform: translateY(-4px);
+}
+
+.line-buy {
+  flex: 0 0 auto;
+  font: 500 13px/1.4 var(--mono);
+  white-space: nowrap;
+}
+
+.line-tell {
+  margin: 2px 0 0;
+  font: 400 12px/1.5 var(--mono);
+  color: var(--muted);
+  max-width: 58ch;
+}
+
+/* ----------------------------------------------------------------- budget */
+
+.budget {
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+}
+
+.budget-target { font: 600 15px/1.4 var(--sans); }
+.budget-target b { font: 600 15px/1 var(--mono); }
+.budget-est { font: 400 13px/1.5 var(--mono); }
+.over { color: var(--warn); }
+.under { color: var(--ok); }
+.budget-note {
+  margin: 0;
+  flex: 1 1 100%;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+/* ----------------------------------------------------------- cart or not */
+
+.cart { margin-top: 30px; border-top: 1px solid var(--line); padding-top: 18px; }
+
+.cart-cta { margin: 14px 0 0; }
+
+.cart-note {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 58ch;
+  text-wrap: pretty;
+}
+
+.verdict {
+  margin: 14px 0 0;
+  font-size: 17px;
+  line-height: 1.4;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  max-width: 40ch;
+  text-wrap: pretty;
+}
+
+.unresolved-title {
+  margin: 18px 0 0;
+  font: 600 11px/1 var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.unresolved { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 10px; }
+
+.unresolved li {
+  display: grid;
+  gap: 2px;
+  border-left: 0;
+}
+
+.u-line { font-size: 15px; font-weight: 600; line-height: 1.4; overflow-wrap: anywhere; }
+
+.u-reason {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted);
+  max-width: 60ch;
+  text-wrap: pretty;
+}
+
+.resolved-note { margin: 14px 0 0; font-size: 13.5px; line-height: 1.55; color: var(--ok); }
+
+/* ----------------------------------------------------- saved sample, agent */
+
+.sample, .panel { margin-top: 30px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+.sample summary, .panel summary {
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  width: fit-content;
+  padding: 2px 0;
+}
+
+.sample[open] summary, .panel[open] summary { margin-bottom: 4px; }
+
+.sample-note, .panel-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 62ch;
+  text-wrap: pretty;
+}
+
+.sample .run-head { border-top: 1px solid var(--line); margin-top: 20px; }
+
+.agent-state {
+  margin: 14px 0 0;
+  font: 400 12.5px/1.6 var(--mono);
+  color: var(--muted);
+}
+
+.agent-state.ok { color: var(--ok); }
+.agent-state.warn { color: var(--warn); }
+
+.panel .field { margin-top: 18px; max-width: 420px; }
+
+.foot-note {
+  margin: 22px 0 0;
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--muted);
+  max-width: 78ch;
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+  .btn:active { transform: none; }
+}
