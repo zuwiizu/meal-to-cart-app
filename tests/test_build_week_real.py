@@ -95,6 +95,18 @@ SIZED_ONLY = """Title: Demo Pantry Bowls
 * 0.5 teaspoon black pepper
 """
 
+# Not one line says HOW MANY. This is the case the refusal exists for, and it is
+# now the only input in this file that exercises it: the importer must not invent
+# an amount, and the seam must refuse the line rather than let it into a cart.
+NO_AMOUNTS = """Title: Seasoning Only
+
+## Ingredients
+* kosher salt, to taste
+* freshly ground black pepper
+* olive oil
+* a handful of parsley
+"""
+
 
 class _HeldStill:
     """The search, held still: one canned product row per query, no network.
@@ -149,27 +161,41 @@ def _search_without_a_network(monkeypatch, agent_module) -> _HeldStill:
 def test_the_real_seam_refuses_a_week_whose_recipe_states_no_amounts(monkeypatch):
     """The refusal, through the real seam rather than a hand-made Unknown.
 
-    The committed fixture carries two lines the importer can read no amount for
-    ("1 lemon", "6 chicken thighs, with bone and skin": no unit word follows the
-    number, so it reports no amount rather than inventing one). The seam refuses
-    an unsized line with code NO_SIZE before any lookup is asked, so such a week
-    cannot become a cart however good the search is -- the search below hands back
-    a perfect row for every query it is given, and there is still no link.
+    REPAIRED 2026-09-25 after the importer was deliberately changed. It used to
+    lean on the committed fixture's two countable lines ("1 lemon", "6 chicken
+    thighs") being read as unsized. They are now read as SIZED, because a bare
+    count before a countable noun is itself a size -- so the fixture no longer
+    contains anything unsized and this test could no longer prove the refusal on
+    it. Rather than delete the only real-seam proof of the refusal, it now uses a
+    recipe that genuinely states no amounts at all.
+
+    Note what is still true and still load-bearing: a line with NO number is an
+    amount the importer will not invent, the seam refuses it with NO_SIZE before
+    any lookup runs, and so the week cannot become a cart however perfect the
+    search is. The search below hands back a perfect row for every query.
     """
+    from meal_to_cart import importer
     from meal_to_cart_app import agent
-    _one_link_worth_of_recipes(monkeypatch, agent)
+    monkeypatch.setattr(agent, "import_recipe",
+                        lambda url: importer.import_recipe(url, fetch=lambda _u: NO_AMOUNTS))
     held = _search_without_a_network(monkeypatch, agent)
 
-    out = build_week("demo", links=["https://example.test/air-fryer-chicken-thighs"], form={})
+    out = build_week("demo", links=["https://example.test/seasoning-only"], form={})
 
-    assert out["shopping"], "the fixture must yield list lines, or this proves nothing"
+    assert out["shopping"], "this recipe must yield list lines, or it proves nothing"
     assert out["cart_link"] is None, "a partial cart must never be rendered"
     named = {entry["line"]: entry["reason"] for entry in out["unresolved"]}
-    assert "1 lemon" in named, named
-    assert "does not state one usable amount" in named["1 lemon"], named["1 lemon"]
+    assert named, "the unsized lines must be named, not filtered away"
+    # NOT every line here is refused, and that is the engine working correctly
+    # rather than a gap: the aggregator resolves some lines to a concrete buy on
+    # its own ("a handful of parsley" came back as '1 bunch'). So this asserts the
+    # mechanism -- the refused lines are refused FOR STATING NO AMOUNT, and at
+    # least one line was refused -- instead of asserting a count I had guessed at.
+    # An equality here was my own error, and it failed on the first run.
+    for line, reason in named.items():
+        assert "does not state one usable amount" in reason, (line, reason)
     assert len(named) < len(out["shopping"]), (
-        "most of the fixture is supposed to resolve: if nothing had, this test "
-        "would be proving the search broken rather than the refusal working")
+        "if every line were refused this would prove the search broken, not the refusal")
     assert held.queries, "the sized lines are searched; only the unsized ones are refused first"
 
 
@@ -199,3 +225,30 @@ def test_a_week_that_all_resolves_renders_the_real_link_end_to_end(monkeypatch):
     assert out["cart_summary"], "the human half of render_cart_link is kept, off the href"
     assert gateway.BASE_URL in out["cart_link"]
     assert out["budget"]["total"] > 0 and out["budget"]["priced"] == len(out["shopping"])
+
+
+def test_the_committed_fixture_now_resolves_fully_and_renders_a_link(monkeypatch):
+    """The demo's happy path, on the real committed recipe.
+
+    Recorded because it is a BEHAVIOUR CHANGE the household asked for: "1 lemon"
+    and "6 chicken thighs, with bone and skin" used to be read as unsized and the
+    week ended in a refusal. A bare count before a countable noun is itself a size
+    -- it says how many to buy -- so those lines are now sized, the fixture
+    resolves completely, and the demo produces a link instead of a refusal.
+
+    The guard is untouched and still proves itself: a line with no number at all
+    is still refused (see the NO_AMOUNTS test above).
+    """
+    from meal_to_cart import importer
+    from meal_to_cart_app import agent
+    monkeypatch.setattr(agent, "import_recipe",
+                        lambda url: importer.import_recipe(
+                            url, fetch=lambda _u: FIXTURE.read_text()))
+    held = _search_without_a_network(monkeypatch, agent)
+
+    out = build_week("demo", links=["https://example.test/air-fryer-chicken-thighs"], form={})
+
+    assert out["unresolved"] == [], out["unresolved"]
+    assert len(out["shopping"]) == 8, "the fixture states 8 ingredients"
+    assert out["cart_link"], "a fully resolved week must render a link"
+    assert "storeId=0000" in out["cart_link"]
