@@ -1,0 +1,64 @@
+{
+  "_what": "INVENTED store facts for the demo. Every name below is fiction, and there is no postal code, no city, no street and no state anywhere in this file. The one store id is invented too: it is a demonstration of the MECHANISM (a cart link carries storeId, because the store decides what is on the shelf), not a place. A real visitor's own Walmart store id is what belongs in their own profile, and no real household's is here.",
+  "verified_on": "2026-01-01",
+  "stores": [
+    {
+      "key": "harris_teeter",
+      "name": "Demo Grocery",
+      "approx_miles": 1,
+      "distance_confidence": "invented for the demo",
+      "hours": "8:00-21:00 daily",
+      "ad": "a weekly ad, invented for the demo",
+      "role": "main",
+      "source": "invented for the demo"
+    },
+    {
+      "key": "costco",
+      "name": "Demo Warehouse Club",
+      "approx_miles": 4,
+      "distance_confidence": "invented for the demo",
+      "hours": "warehouse hours, invented",
+      "ad": "a coupon book, invented for the demo",
+      "role": "club",
+      "source": "invented for the demo"
+    },
+    {
+      "key": "bjs",
+      "name": "Demo Club Alternative",
+      "approx_miles": 4.5,
+      "distance_confidence": "invented for the demo",
+      "hours": "invented",
+      "ad": "none, invented",
+      "role": "club_alt",
+      "source": "invented for the demo"
+    },
+    {
+      "key": "target",
+      "name": "Demo Pantry Store",
+      "approx_miles": 2.5,
+      "distance_confidence": "invented for the demo",
+      "hours": "invented",
+      "ad": "none, invented",
+      "role": "pantry",
+      "source": "invented for the demo"
+    },
+    {
+      "key": "trader_joes",
+      "name": "Demo Specialty Market",
+      "approx_miles": 9,
+      "distance_confidence": "invented for the demo",
+      "hours": "invented",
+      "ad": "no weekly ad, invented",
+      "role": "destination",
+      "source": "invented for the demo"
+    },
+    {
+      "key": "walmart",
+      "name": "Demo Walmart Supercenter",
+      "storeId": "0000",
+      "role": "supermarket",
+      "source": "INVENTED for the demo. 0000 is not a Walmart store and is not any household's: it stands in for the store a real visitor's own profile would name, so the demo can show the link's store binding at all. A run against a profile with no store renders NO link and says so -- guessing a store id would fill a cart at a shop the visitor does not use."
+    }
+  ],
+  "_note": "The store KEYS are the contract: mealplan.stores.build_store_plan reads its stops by key, and build_week reads the 'walmart' entry's storeId. Keeping the keys is engineering, not a shared value; every display NAME and the id are this repo's own fiction."
+}
