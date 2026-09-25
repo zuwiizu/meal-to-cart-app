@@ -1,0 +1,27 @@
+{
+  "_what": "INVENTED values for the demo household. Fiction. Not a real household's answers, and deliberately not any real ZIP, city or store.",
+  "preferences": {
+    "likes": [
+      "pasta",
+      "grilled vegetables",
+      "citrus",
+      "soup"
+    ],
+    "dislikes": [
+      "olives",
+      "fennel"
+    ]
+  },
+  "home": {
+    "postalCode": "00000",
+    "city": "Example City"
+  },
+  "plan": {
+    "dinners": 5,
+    "servings": 2
+  },
+  "budget": {
+    "weekly_target": 150,
+    "currency": "USD"
+  }
+}

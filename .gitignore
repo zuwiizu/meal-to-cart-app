@@ -1,0 +1,16 @@
+# The installed environment. `uv run` builds it on first use.
+.venv/
+__pycache__/
+.cache/
+*.egg-info/
+
+# A developer may keep the real household's terms in a list beside this repo.
+# Gitignored so it can never be committed or published; the boundary test falls
+# back to the engine's own gitignored list, which lives outside this repository.
+.private-terms.txt
+
+# Machine-specific run output from the static page.
+site/data/*.local.json
+
+# pytest's cache.
+.pytest_cache/

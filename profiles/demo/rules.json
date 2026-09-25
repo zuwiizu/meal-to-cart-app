@@ -1,0 +1,66 @@
+{
+  "diet": "INVENTED for the demo kitchen. No real household eats by these rules, and the household's own ruleset shares nothing with them.",
+  "_what": "INVENTED dietary rules for the demo. The engine's severities: reject bars a recipe from a plan, review only flags it for a human. Field names are the engine's (name/tokens/severity/why/exceptions), because a file the engine cannot load is a slot that only looks filled.",
+  "rules": [
+    {
+      "name": "shellfish",
+      "severity": "reject",
+      "why": "Invented demo rule.",
+      "tokens": [
+        "shellfish",
+        "shrimp",
+        "prawn",
+        "crab",
+        "lobster",
+        "clam",
+        "mussel",
+        "oyster",
+        "scallop"
+      ],
+      "exceptions": []
+    },
+    {
+      "name": "pork",
+      "severity": "reject",
+      "why": "Invented demo rule.",
+      "tokens": [
+        "pork",
+        "bacon",
+        "ham",
+        "pancetta",
+        "prosciutto",
+        "chorizo"
+      ],
+      "exceptions": []
+    },
+    {
+      "name": "alcohol",
+      "severity": "reject",
+      "why": "Invented demo rule; cooking wine and beer are still alcohol.",
+      "tokens": [
+        "wine",
+        "beer",
+        "rum",
+        "vodka",
+        "tequila",
+        "whiskey"
+      ],
+      "exceptions": [
+        "wine vinegar",
+        "rice vinegar",
+        "beer batter"
+      ]
+    },
+    {
+      "name": "blue-cheese",
+      "severity": "review",
+      "why": "Invented demo rule: confirm the product line before buying, do not bar the recipe.",
+      "tokens": [
+        "blue cheese",
+        "gorgonzola",
+        "roquefort"
+      ],
+      "exceptions": []
+    }
+  ]
+}

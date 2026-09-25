@@ -1,0 +1,25 @@
+[build-system]
+# Without this, uv treats the project as a non-package and never puts src/ on
+# sys.path: every "from meal_to_cart_app import ROOT" fails, including the
+# pytest run this repo is verified with. The engine's pyproject declares the
+# same backend for the same reason.
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meal-to-cart-app"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["meal-to-cart"]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv.sources]
+meal-to-cart = { path = "../meal-to-cart", editable = true }
