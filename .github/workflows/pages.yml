@@ -1,0 +1,143 @@
+# Publish the page -- and only the page.
+#
+# Three things decide this file, and one thing it cannot do.
+#
+#   1. THE ARTEFACT IS site/ AND NOTHING ELSE. This repository's pyproject
+#      depends on the private engine by path (../meal-to-cart). That engine must
+#      never be checked out here: the reason the two-repo split exists is that
+#      the engine sits beside a real household's values, and a CI checkout of it
+#      would put them in a public build log. The deploy job uploads site/ alone,
+#      so what gets published is three static files and nothing else.
+#
+#   2. THE GATE RUNS BEFORE THE DEPLOY. The guard job scans the published bytes
+#      for private terms and for the shapes of private data, and deploy needs
+#      it. A failure there is no publish.
+#
+#   3. THE TERM SCAN SKIPS, NEVER FAILS, WHEN THERE IS NOTHING TO SCAN FOR.
+#      The real terms live in a gitignored list in the private engine. A CI
+#      runner does not have them and must not fetch them, so with no
+#      PRIVATE_TERMS secret the term scan says so and the shape scan runs
+#      anyway -- exactly the contract tests/test_boundary.py keeps locally.
+#
+#   WHAT IT CANNOT DO: run the authoritative boundary test. That test asks
+#   meal_to_cart.guard, and the engine is not here. The four shapes below mirror
+#   that guard so the published bytes are still checked in CI; the guard's list
+#   is the definition and this is a net. The authoritative run is local, in a
+#   checkout that has the engine beside it:
+#
+#       uv run --extra dev pytest -q
+#
+#   Pushing this repository to a remote at all is a human decision, and the
+#   first push is what turns this file on.
+
+name: publish the page
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    name: the published bytes carry no private value
+    runs-on: ubuntu-latest
+    env:
+      PRIVATE_TERMS: ${{ secrets.PRIVATE_TERMS }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: scan site/ before it can be published
+        run: |
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+          from pathlib import Path
+
+          # Mirrors meal_to_cart.guard.SHAPES, which is the authority. It
+          # cannot be imported here: the engine is private and deliberately
+          # absent. If these two ever disagree, the engine's list wins.
+          COOKIE = r"sessionid|_pxvid|pxcts|bstc|_astc"
+          SHAPES = [
+              (re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[A-Za-z]{2,}\b"),
+               "an email address"),
+              (re.compile(r"\b\d{2,6}\s+[A-Z][a-z]+\s+"
+                          r"(?:St|Street|Ave|Avenue|Rd|Road|Ln|Lane|Dr|Drive|Blvd|Ct|Way)\b"),
+               "a street address"),
+              (re.compile(r'"(' + COOKIE + r')"\s*:|:\s*"(' + COOKIE + r')"'),
+               "a session cookie value"),
+              (re.compile(r"\b\d{5}(?:-\d{4})?\b(?=[^\d]*\b(?:zip|postal)\b)", re.I),
+               "a postal code"),
+          ]
+
+          published = sorted(p for p in Path("site").rglob("*") if p.is_file())
+          if not published:
+              sys.exit("nothing to publish: site/ holds no files, so this gate "
+                       "would pass by scanning nothing")
+
+          raw = os.environ.get("PRIVATE_TERMS") or ""
+          terms = [t.strip().lower() for t in raw.splitlines()
+                   if t.strip() and not t.startswith("#")]
+          if not terms:
+              print("no PRIVATE_TERMS secret here: the term scan SKIPS, never "
+                    "fails, exactly as tests/test_boundary.py does locally. The "
+                    "shape scan below still runs on every published byte.")
+
+          hits = []
+          for path in published:
+              text = path.read_text(errors="ignore")
+              low = text.lower()
+              for term in terms:
+                  # A leading word boundary only, as the engine's guard does:
+                  # the list holds stems, and a trailing boundary would stop
+                  # matching the longer words that begin with one.
+                  if re.search(r"\b" + re.escape(term), low):
+                      hits.append((path, "a private term"))
+              for pattern, label in SHAPES:
+                  if pattern.search(text):
+                      hits.append((path, label))
+
+          print(f"scanned {len(published)} published file(s): "
+                f"{len(terms)} private term(s), {len(SHAPES)} secret shape(s)")
+          if hits:
+              for path, what in hits:
+                  print(f"BLOCKED: {path} carries {what}", file=sys.stderr)
+              print("No publish. Fix the value, or add the missing term to the "
+                    "private list and run the boundary test locally.", file=sys.stderr)
+              sys.exit(1)
+          print("clean: site/ carries no private value this build can see")
+          PY
+
+  deploy:
+    name: deploy site/ to Pages
+    needs: guard
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # There is no build step and no framework: site/index.html, site/app.css
+      # and site/app.js are the artefact, exactly as they are reviewed.
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

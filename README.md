@@ -50,7 +50,10 @@ The demo deliberately ships no `recipes.json`. Recipes arrive as links and are
 imported at run time, which is the product's whole premise -- a demo recipe file
 would misrepresent it.
 
-The page, the endpoint that serves it, and `SETUP.md` come next.
+The page is `site/` and the endpoint that answers it is
+`src/meal_to_cart_app/agent.py`. `SETUP.md` runs both, `VIDEO.md` is the shot
+list for the recording, and `.github/workflows/pages.yml` publishes `site/` alone
+behind the boundary check.
 
 ## Running the tests
 
