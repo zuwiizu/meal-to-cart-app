@@ -3,9 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Meal to Cart - bring your recipes, get one cart</title>
+<title>Meal to Cart — from your recipe links to a Walmart cart</title>
 <meta name="description" content="Paste the recipe links you already have. Answer one card about your week. Get a week of dinners, a list grouped by aisle, and a cart waiting at Walmart for you to check out.">
 <link rel="stylesheet" href="app.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23C2410C'/%3E%3Cpath d='M18 22h36l-4 20a6 6 0 0 1-6 5H24a6 6 0 0 1-6-5l-4-20z' fill='none' stroke='%23FBF8F3' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M24 22l6-8M40 22l-6-8' stroke='%23FBF8F3' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
 </head>
 <body>
 <div class="wrap">
@@ -13,18 +14,43 @@
   <header class="masthead">
     <div class="masthead-top">
       <h1 class="wordmark">Meal to Cart</h1>
-      <p class="store">Demo store: Walmart</p>
+      <p class="store">Demo &middot; Walmart</p>
     </div>
-    <p class="standfirst">Paste the recipe links you already have. Answer one card about your week. Get a plan, a list grouped by aisle, and one cart waiting at Walmart for you to open.</p>
+    <p class="kicker"><span class="kicker-dot" aria-hidden="true"></span>Live demo &mdash; no account, nothing to install</p>
+    <p class="hero">Your saved recipes, turned into a week of dinners &mdash; with the shopping list and the cart done for you.</p>
+    <p class="standfirst">Paste the recipe links you already have, answer one short card about your week, and press build. You get the dinners, the list grouped by aisle, and either a cart waiting at Walmart or an honest account of why there is none.</p>
+    <ol class="steps" aria-label="How it works">
+      <li class="step">
+        <span class="step-num" aria-hidden="true">1</span>
+        <div class="step-body">
+          <p class="step-title">Bring your recipes</p>
+          <p class="step-text">One link per line &mdash; a creator&rsquo;s site, a blog, a page you saved years ago.</p>
+        </div>
+      </li>
+      <li class="step">
+        <span class="step-num" aria-hidden="true">2</span>
+        <div class="step-body">
+          <p class="step-title">Say how the week looks</p>
+          <p class="step-text">Dinners, servings, a budget target, and anything to leave out. One card.</p>
+        </div>
+      </li>
+      <li class="step">
+        <span class="step-num" aria-hidden="true">3</span>
+        <div class="step-body">
+          <p class="step-title">Get your week</p>
+          <p class="step-text">The plan, the aisle-grouped list, and a cart link you open yourself.</p>
+        </div>
+      </li>
+    </ol>
   </header>
 
   <form id="week-form" novalidate>
 
     <section class="beat" id="bring" aria-labelledby="bring-h">
-      <p class="beat-num" aria-hidden="true">01</p>
+      <p class="beat-num" aria-hidden="true"><span>1</span></p>
       <div class="beat-body">
         <h2 id="bring-h">Bring your recipes</h2>
-        <p class="lead">A link per line: a creator's site, a blog, a page you saved years ago. There is no cookbook inside this page. The links you paste are the only recipes it can plan with, and each one comes back with how confidently it was read.</p>
+        <p class="lead">A link per line: a creator&rsquo;s site, a blog, a page you saved years ago. There is no cookbook inside this page. The links you paste are the only recipes it can plan with, and each one comes back with how confidently it was read.</p>
 
         <div class="field field-wide">
           <label for="links">Recipe links</label>
@@ -44,7 +70,7 @@
     </section>
 
     <section class="beat" id="week" aria-labelledby="week-h">
-      <p class="beat-num" aria-hidden="true">02</p>
+      <p class="beat-num" aria-hidden="true"><span>2</span></p>
       <div class="beat-body">
         <h2 id="week-h">Tell us about your week</h2>
         <p class="lead">One card, five answers. No account, nothing to install, and no step two.</p>
@@ -56,9 +82,9 @@
               <div class="field">
                 <label for="plan-type">Plan type</label>
                 <select id="plan-type" name="dinners" aria-describedby="plan-type-hint">
-                  <option value="5" selected>A full week - 5 dinners</option>
-                  <option value="3">A short week - 3 dinners</option>
-                  <option value="7">Every night - 7 dinners</option>
+                  <option value="5" selected>A full week &ndash; 5 dinners</option>
+                  <option value="3">A short week &ndash; 3 dinners</option>
+                  <option value="7">Every night &ndash; 7 dinners</option>
                 </select>
                 <p class="hint" id="plan-type-hint">Sets how many dinners get planned.</p>
               </div>
@@ -83,12 +109,12 @@
             <div class="rows rows-2">
               <div class="field">
                 <label for="allergies">Allergies or foods to avoid</label>
-                <input id="allergies" name="allergies" type="text" autocomplete="off" aria-describedby="allergies-hint" placeholder="peanut, sesame...">
+                <input id="allergies" name="allergies" type="text" autocomplete="off" aria-describedby="allergies-hint" placeholder="peanut, sesame&hellip;">
                 <p class="hint" id="allergies-hint">Comma separated. Anything matching comes out of the list and is named in the reasons panel, never removed quietly.</p>
               </div>
               <div class="field">
                 <label for="dislikes">Dislikes</label>
-                <input id="dislikes" name="dislikes" type="text" autocomplete="off" aria-describedby="dislikes-hint" placeholder="olives, fennel...">
+                <input id="dislikes" name="dislikes" type="text" autocomplete="off" aria-describedby="dislikes-hint" placeholder="olives, fennel&hellip;">
                 <p class="hint" id="dislikes-hint">Same treatment as the list above: taken out and named, never hidden.</p>
               </div>
             </div>
@@ -98,10 +124,10 @@
     </section>
 
     <section class="beat" id="build" aria-labelledby="build-h">
-      <p class="beat-num" aria-hidden="true">03</p>
+      <p class="beat-num" aria-hidden="true"><span>3</span></p>
       <div class="beat-body">
         <h2 id="build-h">Build my week</h2>
-        <p class="lead">One request: your links and this card, sent to your own agent. It plans the dinners, works out what to buy, and hands back a cart for you to open.</p>
+        <p class="lead">One request: your links and this card, sent to the demo agent. It plans the dinners, works out what to buy, and hands back a cart for you to open.</p>
 
         <div class="build">
           <button type="submit" class="btn btn-primary" id="build-week">Build my week</button>
@@ -112,13 +138,13 @@
 
         <div class="result" id="result">
           <div class="empty" id="empty-state">
-            <p class="empty-title">No week built yet.</p>
+            <p class="empty-title">Your week will appear here.</p>
             <p class="empty-body">Paste at least one link above, then press <strong>Build my week</strong>. You get the dinners, the list grouped by aisle, and either a cart to open or the reason there is no cart.</p>
           </div>
 
           <details class="sample" id="sample-block" open>
-            <summary>Saved example run - not your links</summary>
-            <p class="sample-note">No agent has answered, so nothing here was built from your links. This is a saved run of the demo profile, kept in the page so the shape of a real result stays visible with nothing running. The titles, ingredient counts and confidences are the reader's own output; the aisles, the merged amounts and the reuse notes are the list builder's.</p>
+            <summary><span class="chip chip-sample">Example</span> A saved week, so you can see the shape of a result</summary>
+            <p class="sample-note">No agent has answered yet, so this was not built from your links. It is a saved run of the demo profile, kept here so the page is useful before anything is running. The titles, ingredient counts and confidences are the reader&rsquo;s own output; the aisles, the merged amounts and the reuse notes are the list builder&rsquo;s.</p>
             <div id="sample-body"></div>
           </details>
         </div>
@@ -129,20 +155,20 @@
 
   <footer class="foot">
     <details class="panel" id="agent-block">
-      <summary>Agent - where your links are sent</summary>
+      <summary>Connection &mdash; where your links are sent</summary>
       <div class="panel-body">
-        <p class="agent-state" id="agent-state" role="status" aria-live="polite">Checking for an agent at http://127.0.0.1:8787...</p>
+        <p class="agent-state" id="agent-state" role="status" aria-live="polite">Looking for the demo agent&hellip;</p>
         <div class="field">
           <label for="agent-url">Agent URL</label>
           <input id="agent-url" name="agent_url" type="url" inputmode="url" spellcheck="false" autocomplete="off" aria-describedby="agent-hint" placeholder="http://127.0.0.1:8787">
-          <p class="hint" id="agent-hint">Everything this page sends goes to this one address and nowhere else. It is saved in this browser, not on a server.</p>
+          <p class="hint" id="agent-hint">Everything this page sends goes to this one address and nowhere else. It is saved in this browser, not on a server. You can also pass <span class="mono">?agent=</span> in the page address.</p>
         </div>
         <div class="actions">
           <button type="button" class="btn btn-quiet" id="save-agent">Save and check</button>
         </div>
       </div>
     </details>
-    <p class="foot-note">The agent runs on the machine that owns the store account, which is why this page can hold no account of its own and never checks out. Three files, opened from disk: no framework, no build step, no network except your own agent.</p>
+    <p class="foot-note">The agent does the planning on its own machine, which is why this page holds no account of its own and never checks out. Three files, no framework, no build step &mdash; and it never sends anything anywhere except the one address above.</p>
   </footer>
 
 </div>

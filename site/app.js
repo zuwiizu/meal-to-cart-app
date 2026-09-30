@@ -546,6 +546,17 @@
   function agentUrl() {
     var saved = '';
     try { saved = window.localStorage.getItem(AGENT_KEY) || ''; } catch (err) { saved = ''; }
+    /* A shared link can carry its own agent: ?agent=https://... -- validated
+       like any pasted address, and remembered the same way. */
+    var param = '';
+    try {
+      param = new URLSearchParams(window.location.search).get('agent') || '';
+    } catch (err) { param = ''; }
+    param = param.trim().replace(/\/+$/, '');
+    if (/^https?:\/\//i.test(param)) {
+      storeAgentUrl(param);
+      saved = param;
+    }
     return (saved || DEFAULT_AGENT).replace(/\/+$/, '');
   }
 
@@ -589,11 +600,11 @@
       var profiles = asList(result.data && result.data.profiles) || [];
       if (!profiles.length) { throw new Error('the agent answered but lists no profiles'); }
       state.className = 'agent-state ok';
-      state.textContent = 'Connected. The agent at ' + url + ' offers ' + profiles.join(', ') + '. Your links are sent there and nowhere else.';
+      state.textContent = 'Connected to the demo agent at ' + url + ' (' + profiles.join(', ') + '). Your links go there and nowhere else.';
       return profiles.map(textOf);
     }, function (error) {
       state.className = 'agent-state warn';
-      state.textContent = 'No agent answered at ' + url + ' (' + error.message + '). Nothing is broken: the page is showing the saved example run below, and nothing is sent anywhere until an agent answers.';
+      state.textContent = 'No agent answered at ' + url + ' (' + error.message + '). The example week below still shows what a result looks like, and nothing is sent anywhere until an agent answers.';
       return null;
     });
   }
@@ -683,8 +694,8 @@
     var box = el('div', 'run-head');
     var row = el('div', 'run-head-row');
     if (meta.sample) {
-      row.appendChild(chip('Saved example', 'chip-sample'));
-      row.appendChild(el('span', 'run-where', 'no agent answered, so this is the saved run - none of your links are in it'));
+      row.appendChild(chip('Example', 'chip-sample'));
+      row.appendChild(el('span', 'run-where', 'a saved run, shown so the page is useful before an agent answers - none of your links are in it'));
     } else {
       row.appendChild(chip('Live run', 'chip-ok'));
       row.appendChild(el('span', 'run-where', 'built by the agent at ' + meta.agentUrl));
