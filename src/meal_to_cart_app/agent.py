@@ -366,7 +366,7 @@ def create_app(port: int = 8787) -> ThreadingHTTPServer:
             body = json.dumps(payload).encode()
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Origin", "https://meal-to-cart-demo.pages.dev")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -374,7 +374,7 @@ def create_app(port: int = 8787) -> ThreadingHTTPServer:
 
         def do_OPTIONS(self):                        # noqa: N802
             self.send_response(204)
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Origin", "https://meal-to-cart-demo.pages.dev")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.end_headers()
 
