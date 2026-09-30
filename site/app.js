@@ -21,7 +21,7 @@
 (function () {
   'use strict';
 
-  var DEFAULT_AGENT = 'https://straight-essentials-enlargement-registered.trycloudflare.com';
+  var DEFAULT_AGENT = 'https://meal-to-cart.ppcstacklab.com';
   var AGENT_KEY = 'meal-to-cart:agent-url';
   var MAX_LINKS = 12;
   var READ_TIMEOUT = 90000;
