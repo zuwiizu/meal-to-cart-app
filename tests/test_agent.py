@@ -47,14 +47,14 @@ def test_a_save_writes_the_form_into_the_profile(tmp_path, monkeypatch):
 
 
 def test_budget_is_a_target_and_never_blocks():
-    # A target is compared, never obeyed. Note what this does NOT assert: with a
-    # $1 target and nothing yet spent, "over" must be False, because it is a
-    # comparison (total > target) and not a flag anyone sets by hand.
+    # No priced groceries means no comparison. Missing prices must not become
+    # zero and make the page claim a free or under-budget week.
     out = build_week("demo", links=[], form={"budget_weekly": 1})
     b = out["budget"]
     assert b["target"] == 1.0
     assert b["blocked"] is False
-    assert b["over"] is (b["total"] > b["target"])
+    assert b["total"] is None
+    assert b["over"] is None
 
 
 def test_a_budget_over_target_still_produces_the_week():

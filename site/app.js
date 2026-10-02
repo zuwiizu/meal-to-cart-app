@@ -438,6 +438,8 @@
   };
 
   var profileName = 'demo';
+  var reviewedChoices = {};
+  var reviewConfirmed = false;
 
   // --------------------------------------------------------------- plumbing
 
@@ -600,7 +602,7 @@
       var profiles = asList(result.data && result.data.profiles) || [];
       if (!profiles.length) { throw new Error('the agent answered but lists no profiles'); }
       state.className = 'agent-state ok';
-      state.textContent = 'Connected to the demo agent at ' + url + ' (' + profiles.join(', ') + '). Your links go there and nowhere else.';
+      state.textContent = 'Connected to the demo agent at ' + url + ' (' + profiles.join(', ') + '). With live AI enabled, it sends recipe titles, ingredients and your week preferences to Jev for ranking.';
       return profiles.map(textOf);
     }, function (error) {
       state.className = 'agent-state warn';
@@ -732,6 +734,10 @@
     var entries = asList(payload.plan) || asList(payload.dinners) || asList(payload.meals);
     if (!entries || !entries.length) {
       box.appendChild(el('p', 'block-note', 'No dinners came back from this run. An empty week is not a light week: nothing here should be read as planned.'));
+      (payload.barred || []).concat(payload.review || []).forEach(function (row) {
+        box.appendChild(el('p', 'block-note', row.title + ': ' + row.reason));
+      });
+      (payload.notes || []).forEach(function (note) { box.appendChild(el('p', 'block-note', note)); });
       return box;
     }
     var list = el('ol', 'plan');
@@ -764,6 +770,15 @@
       list.appendChild(li);
     });
     box.appendChild(list);
+    var coverage = payload.coverage;
+    if (coverage && coverage.planned < coverage.requested) {
+      box.appendChild(el('p', 'verdict', coverage.planned + ' of ' + coverage.requested + ' dinners planned. Add ' + (coverage.requested - coverage.planned) + ' more eligible recipe links to fill the week.'));
+      box.appendChild(el('p', 'block-note', 'Each unique recipe is used once. Unfilled nights: ' + (coverage.unfilled || []).join(', ') + '.'));
+    }
+    (payload.notes || []).forEach(function (note) { box.appendChild(el('p', 'block-note', note)); });
+    (payload.barred || []).concat(payload.review || []).forEach(function (row) {
+      box.appendChild(el('p', 'block-note', row.title + ': ' + row.reason));
+    });
     return box;
   }
 
@@ -775,6 +790,17 @@
   function lineRow(entry) {
     var item = textOf(firstOf(entry, ['item', 'name', 'product', 'title']));
     var buy = textOf(firstOf(entry, ['buy', 'quantity', 'amount', 'size']));
+    buy = buy.replace(/^([0-9]+(?:\.[0-9]+)?)/, function (raw) {
+      var value = Number(raw);
+      var whole = Math.floor(value), fraction = value - whole;
+      var parts = [[1,12],[1,8],[1,6],[1,4],[1,3],[1,2],[2,3],[3,4]];
+      for (var i = 0; i < parts.length; i += 1) {
+        if (Math.abs(fraction - parts[i][0] / parts[i][1]) < 0.0001) {
+          return (whole ? whole + ' ' : '') + parts[i][0] + '/' + parts[i][1];
+        }
+      }
+      return String(Math.round(value * 100) / 100);
+    });
     var need = textOf(firstOf(entry, ['need', 'needed', 'recipe_amount']));
     var spare = textOf(firstOf(entry, ['spare', 'leftover', 'note', 'notes']));
     var form = textOf(firstOf(entry, ['form']));
@@ -903,9 +929,12 @@
     label.appendChild(document.createTextNode('Target '));
     label.appendChild(el('b', null, money(target, currency)));
 
-    if (total === null) {
+    var priced = numberOrNull(budget.priced);
+    var lines = numberOrNull(budget.lines);
+    if (total === null || (lines !== null && priced !== null && priced < lines)) {
       box.appendChild(label);
-      box.appendChild(el('p', 'budget-note', 'No estimated total came back from this run, so the target cannot be compared against anything yet. Prices come from the store lookup, which this page never does itself.'));
+      var subtotal = numberOrNull(budget.known_subtotal);
+      box.appendChild(el('p', 'budget-note', 'Total unknown. ' + (priced !== null && lines !== null ? priced + ' of ' + lines + ' list lines have prices. ' : '') + 'Missing prices are not zero, so this run cannot be called under budget.' + (subtotal !== null ? ' Known-price subtotal: ' + money(subtotal, currency) + '.' : '')));
       return box;
     }
     var difference = total - target;
@@ -956,8 +985,8 @@
       anchor.rel = 'noopener noreferrer';
       cta.appendChild(anchor);
       box.appendChild(cta);
-      box.appendChild(el('p', 'cart-note', 'The cart is waiting in your own browser. Review it, change it if you like, and check out there. Nothing on this page can order for you.'));
-      box.appendChild(el('p', 'resolved-note', 'Every line resolved. Nothing was left out of this cart.'));
+      box.appendChild(el('p', 'cart-note', 'Open this link to add the matched products. The demo selects one pack per line; check that each pack covers the recipe amount, adjust quantities and confirm your store in Walmart. Nothing on this page orders for you.'));
+      box.appendChild(el('p', 'resolved-note', 'Every list line has a product. Pack-size sufficiency and checkout remain yours to review.'));
       return box;
     }
 
@@ -984,6 +1013,66 @@
       });
       box.appendChild(list);
     }
+    var reviews = payload.product_review || [];
+    if (reviews.length) {
+      box.appendChild(el('h4', 'unresolved-title', 'Review a product match'));
+      box.appendChild(el('p', 'block-note', 'Open a candidate to check its form and pack size. Select only a product you want; this is your explicit substitution, not an automatic match.'));
+      var selects = [];
+      reviews.forEach(function (review, index) {
+        if (!review.candidates || !review.candidates.length) { return; }
+        var label = el('label', null, review.line);
+        var select = el('select');
+        select.id = 'review-product-' + index;
+        label.htmlFor = select.id;
+        select.appendChild(el('option', null, 'Choose after checking a product'));
+        select.firstChild.value = '';
+        review.candidates.forEach(function (candidate) {
+          var option = el('option', null, candidate.title);
+          option.value = candidate.item_id;
+          select.appendChild(option);
+        });
+        var inspect = el('a', 'dish-src', 'Open selected product in Walmart');
+        inspect.target = '_blank'; inspect.rel = 'noopener noreferrer'; inspect.hidden = true;
+        select.addEventListener('change', function () {
+          var candidate = review.candidates.filter(function (c) { return c.item_id === select.value; })[0];
+          inspect.hidden = !candidate;
+          if (candidate) { inspect.href = safeHref(candidate.url); }
+        });
+        box.appendChild(label); box.appendChild(select); box.appendChild(inspect);
+        selects.push({ line: review.line, select: select });
+      });
+      var approval = el('input'); approval.type = 'checkbox'; approval.id = 'review-confirmed';
+      var label = el('label', null, 'I checked the selected product forms and pack sizes.'); label.htmlFor = approval.id;
+      box.appendChild(approval); box.appendChild(label);
+      var button = el('button', 'btn btn-primary', 'Use reviewed choices and rebuild'); button.type = 'button';
+      button.addEventListener('click', function () {
+        if (!approval.checked) { setStatus('Check the selected products and confirm the review first.'); return; }
+        reviewedChoices = {}; reviewConfirmed = true;
+        selects.forEach(function (row) { if (row.select.value) { reviewedChoices[row.line] = row.select.value; } });
+        buildWeek();
+      });
+      box.appendChild(button);
+    }
+    return box;
+  }
+
+  function aiBlock(payload) {
+    var box = el('div', 'block');
+    var ai = payload.ai;
+    if (!ai || ai.status !== 'live') {
+      box.appendChild(el('p', 'block-note', 'Live AI was not called. ' + (ai && ai.reason ? ai.reason : 'This run used the recipe rules only.')));
+      return box;
+    }
+    box.appendChild(el('h3', 'block-title', 'Live AI ranking'));
+    box.appendChild(chip('Fresh model call', 'chip-ok'));
+    box.appendChild(el('p', 'block-note', ai.model + ' · ' + ai.duration_ms + ' ms · ' + ai.called_at));
+    box.appendChild(el('p', 'block-note', 'Your brief: ' + ai.brief));
+    var list = el('ul', 'lines');
+    (ai.scores || []).forEach(function (row) {
+      list.appendChild(el('li', null, row.title + ' — fit ' + row.score.toFixed(2) + '/4'));
+    });
+    box.appendChild(list);
+    box.appendChild(el('p', 'block-note', 'These are preference-fit scores, not food-safety or product-match guarantees. Run ' + ai.run_id));
     return box;
   }
 
@@ -1002,7 +1091,7 @@
   function renderRun(payload, meta) {
     var out = [runHead(payload, meta)];
     var imported = importsFor(payload);
-    if (meta.sample && imported && imported.length) {
+    if (imported && imported.length) {
       var box = el('div', 'block');
       box.appendChild(el('h3', 'block-title', 'How those links were read'));
       var holder = el('div', 'imports');
@@ -1010,6 +1099,7 @@
       box.appendChild(holder.firstChild);
       out.push(box);
     }
+    if (!meta.sample) { out.push(aiBlock(payload)); }
     out.push(planBlock(payload));
     out.push(listBlock(payload));
     out.push(budgetBlock(payload, meta));
@@ -1029,6 +1119,7 @@
     result.insertBefore(run, result.firstChild);
     $('empty-state').hidden = true;
     $('sample-block').open = false;
+    $('sample-block').hidden = true;
     var heading = run.querySelector('.block-title');
     if (heading) {
       heading.setAttribute('tabindex', '-1');
@@ -1047,8 +1138,8 @@
     row.appendChild(chip('Nothing built', 'chip-warn'));
     row.appendChild(el('span', 'run-where', agentUrl()));
     head.appendChild(row);
-    head.appendChild(el('p', 'verdict', 'Nothing was built, and nothing was sent anywhere.'));
-    head.appendChild(el('p', 'cart-note', 'The page asked the agent at ' + agentUrl() + ' and got no answer: ' + error.message + '. Your links and this card were not read, no week was planned, and no cart exists.'));
+    head.appendChild(el('p', 'verdict', 'No completed result was returned.'));
+    head.appendChild(el('p', 'cart-note', 'Build failed: ' + error.message + '. The request may have reached the agent, but this page has no completed week or cart to show.'));
     head.appendChild(el('p', 'cart-note', 'Start the agent and press Build my week again. Until then the saved example below shows the shape of a real result, clearly marked as an example.'));
     run.appendChild(head);
     result.insertBefore(run, result.firstChild);
@@ -1065,7 +1156,12 @@
       dinners: numberOrNull($('plan-type').value),
       budget_weekly: numberOrNull($('budget').value),
       allergies: listFrom($('allergies').value),
-      dislikes: listFrom($('dislikes').value)
+      dislikes: listFrom($('dislikes').value),
+      week_brief: $('week-brief').value.trim(),
+      ai_enabled: $('ai-enabled').checked,
+      store_id: $('store-id').value.trim(),
+      product_choices: reviewedChoices,
+      review_confirmed: reviewConfirmed
     };
   }
 
@@ -1178,7 +1274,7 @@
       }
       setStatus(summarise(payload, 'Built'));
       return null;
-    }, function (error) {
+    }).catch(function (error) {
       mountNothingBuilt(error);
       setStatus('Nothing was built. ' + error.message);
       return null;
@@ -1214,6 +1310,11 @@
 
     $('read-links').addEventListener('click', function () { readLinks(); });
     $('week-form').addEventListener('submit', buildWeek);
+    $('week-form').addEventListener('input', function (event) {
+      if ((event.target.id || '').indexOf('review-') !== 0) {
+        reviewedChoices = {}; reviewConfirmed = false;
+      }
+    });
     $('save-agent').addEventListener('click', function () {
       var value = agentField.value.trim().replace(/\/+$/, '');
       if (!/^https?:\/\//i.test(value)) {

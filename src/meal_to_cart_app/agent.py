@@ -31,6 +31,7 @@ from meal_to_cart.mealplan.shopping import Buy, is_non_ingredient, optimize
 from meal_to_cart.resolve import (NoProduct, Product, Resolution, Resolved,
                                   Unknown, resolve)
 from meal_to_cart.walmart import WalmartHTTP
+from .live_rank import RankingError, rank_recipes
 
 
 def save_profile(name: str, form: dict) -> dict:
@@ -125,6 +126,7 @@ def _recipes_from(imported: list, servings: int) -> list[dict]:
     for raw in imported:
         if not raw.ingredients:
             continue
+        scale = servings / raw.servings if getattr(raw, "servings", None) else 1.0
         out.append({
             "id": raw.source or raw.title,
             "title": raw.title or "(a recipe with no title)",
@@ -134,7 +136,7 @@ def _recipes_from(imported: list, servings: int) -> list[dict]:
             "servings": servings,
             "time_min": 30,
             "ingredients": [
-                {"item": ing.item, "qty": _qty(ing.amount), "unit": ing.unit,
+                {"item": ing.item, "qty": (_qty(ing.amount) * scale if _qty(ing.amount) is not None else None), "unit": ing.unit,
                  "aisle": aisle_for(ing.item)}
                 for ing in raw.ingredients
             ],
@@ -142,7 +144,8 @@ def _recipes_from(imported: list, servings: int) -> list[dict]:
     return out
 
 
-def _plan_week(profile_name: str, recipes: list[dict], dinners: int) -> dict:
+def _plan_week(profile_name: str, recipes: list[dict], dinners: int,
+               form: dict | None = None) -> dict:
     """The engine's own planner, on the visitor's links and the profile's rules.
 
     One engine, two callers: this is the same plan_week the household's own run
@@ -154,8 +157,25 @@ def _plan_week(profile_name: str, recipes: list[dict], dinners: int) -> dict:
     """
     rules_path = profile.paths(profile_name)["rules"]
     ruleset = Ruleset.load(rules_path) if rules_path.is_file() else Ruleset([])
-    return plan_week(recipes, ruleset, household.preferences(profile_name),
-                     days=dinners)
+    form = form or {}
+    for key in ("allergies", "dislikes"):
+        for word in form.get(key) or []:
+            word = str(word).strip().lower()
+            if word:
+                ruleset.rules.append({"name": "Your food exclusions", "severity": "reject",
+                    "tokens": [word, word + "s"], "why": f"matches {word}"})
+    prefs = household.preferences(profile_name)
+    if "dislikes" in form:
+        prefs.dislikes = form["dislikes"]
+    if not form.get("ai_enabled"):
+        return plan_week(recipes, ruleset, prefs, days=dinners)
+    gated = plan_week(recipes, ruleset, prefs, days=max(dinners, len(recipes)))
+    eligible = [r for day in gated["days"] for r in day["recipes"]]
+    ranked, evidence = rank_recipes(eligible, str(form.get("week_brief") or ""))
+    plan = plan_week(ranked, ruleset, household.Prefs(), days=dinners)
+    plan["rejected"], plan["review"] = gated["rejected"], gated["review"]
+    plan["ai"] = evidence
+    return plan
 
 
 def _why_dropped(item: str) -> str:
@@ -195,12 +215,17 @@ def _lookup(match):
             quantity=1,
             title=match.title,
             price=match.price,
-            why=f"matched on {match.query!r} at {match.confidence:.2f}",
+            why=match.reason or f"matched on {match.query!r} at {match.confidence:.2f}",
         )
     return lookup
 
 
-def resolve_all(lines: list[Buy], matcher=None) -> list[tuple[Buy, Resolution]]:
+class ResolutionResults(list):
+    """The normal seam results, with real candidates for explicit human review."""
+    review: list
+
+
+def resolve_all(lines: list[Buy], matcher=None, choices=None) -> list[tuple[Buy, Resolution]]:
     """Every planned line: the product behind it, or the reason there is none.
 
     THE ONE PLACE this app supplies the engine's seam with a product lookup.
@@ -221,10 +246,44 @@ def resolve_all(lines: list[Buy], matcher=None) -> list[tuple[Buy, Resolution]]:
     """
     if not lines:
         return []
-    matches = asyncio.run(search_and_score(lines, matcher or WalmartHTTP()))
+    searcher = matcher or WalmartHTTP()
+    seen = {}
+
+    class CapturingSearch:
+        async def search(self, query, limit=10):
+            rows = await searcher.search(query, limit=limit)
+            seen[query] = rows
+            return rows
+
+    matches = asyncio.run(search_and_score(lines, CapturingSearch()))
+    review = []
+    for match in matches:
+        rows = seen.get(match.query, [])
+        selected = (choices or {}).get(match.buy.item)
+        if selected:
+            row = next((r for r in rows if str(r.get("item_id")) == str(selected)
+                        and not r.get("out_of_stock") and r.get("can_add_to_cart")), None)
+            if row is not None:
+                match.item_id = str(row["item_id"])
+                match.title, match.price = str(row.get("title") or ""), row.get("price")
+                match.action, match.reason = "add", "Product explicitly reviewed by you; rechecked in fresh search."
+            else:
+                match.action, match.reason = "flag", "Your reviewed product was not available in this fresh search. Review again."
+        if match.action != "add" and rows:
+            # Candidates are choices, never accepted substitutions. Keep title,
+            # form and pack visible; the user must open and check the product.
+            candidates = [{"item_id": str(r["item_id"]), "title": str(r.get("title") or ""),
+                           "url": "https://www.walmart.com/ip/" + str(r["item_id"]),
+                           "price": r.get("price")}
+                          for r in rows if r.get("item_id") and r.get("title")
+                          and not r.get("out_of_stock") and r.get("can_add_to_cart")]
+            review.append({"line": match.buy.item, "reason": match.reason,
+                           "candidates": candidates[:10]})
     by_line = {id(result.buy): result for result in matches}
-    return [(line, resolve(line, lookup=_lookup(by_line.get(id(line)))))
-            for line in lines]
+    results = ResolutionResults((line, resolve(line, lookup=_lookup(by_line.get(id(line)))))
+                                for line in lines)
+    results.review = review
+    return results
 
 
 def build_week(profile_name: str, links: list[str], form: dict) -> dict:
@@ -238,13 +297,23 @@ def build_week(profile_name: str, links: list[str], form: dict) -> dict:
     the same aggregator, the same seam and the same link builder its household
     run uses, with this profile's rules and this visitor's links.
     """
-    values = save_profile(profile_name, form) if form else _current_values(profile_name)
+    # A public run is request-scoped: another visitor cannot overwrite this
+    # visitor's preferences while their cart is being built. /profile still saves.
+    values = _current_values(profile_name)
+    values.setdefault("plan", {})
+    values.setdefault("budget", {})
+    for key in ("servings", "dinners"):
+        if key in form:
+            values["plan"][key] = int(form[key])
+    if "budget_weekly" in form:
+        values["budget"]["weekly_target"] = float(form["budget_weekly"])
     plan_rules = values.get("plan") or {}
     budget_rules = values.get("budget") or {}
     target = float(budget_rules.get("weekly_target") or 0.0)
     dinners = int(plan_rules.get("dinners") or 5)
     servings = int(plan_rules.get("servings") or 2)
 
+    links = list(dict.fromkeys(links))
     imported = [import_recipe(url) for url in links]
 
     # A link that yielded no ingredient list is a line this week cannot be built
@@ -259,7 +328,7 @@ def build_week(profile_name: str, links: list[str], form: dict) -> dict:
     ]
 
     recipes = _recipes_from(imported, servings)
-    plan = _plan_week(profile_name, recipes, dinners) if recipes else None
+    plan = _plan_week(profile_name, recipes, dinners, form) if recipes else None
     days = plan["days"] if plan else []
 
     lines = aggregate(days)
@@ -270,7 +339,8 @@ def build_week(profile_name: str, links: list[str], form: dict) -> dict:
     # is named above.
     unresolved += [{"line": item, "reason": _why_dropped(item)} for item in dropped]
 
-    results = resolve_all(buys)
+    choices = form.get("product_choices") if form.get("review_confirmed") is True else None
+    results = resolve_all(buys, choices=choices) if choices else resolve_all(buys)
     resolved = [r for _, r in results if isinstance(r, Resolved)]
     unresolved += [{"line": r.item, "reason": r.reason}
                    for _, r in results if isinstance(r, Unknown)]
@@ -281,8 +351,9 @@ def build_week(profile_name: str, links: list[str], form: dict) -> dict:
     # would go on saying "under" after real prices arrive. A target is shown and
     # compared and never obeyed -- being over it cannot stop a week being made.
     priced = [r for r in resolved if r.price is not None]
-    total = sum(float(r.price) * int(r.quantity) for r in priced)
-    over = total > target
+    subtotal = sum(float(r.price) * int(r.quantity) for r in priced) if priced else None
+    total = subtotal if buys and len(priced) == len(buys) and not unresolved else None
+    over = total > target if total is not None else None
 
     # A partial cart is never rendered. With nothing resolved, or with anything
     # left unnamed -- a line the seam could not place, a link that could not be
@@ -290,7 +361,7 @@ def build_week(profile_name: str, links: list[str], form: dict) -> dict:
     # every line that stopped it is in "unresolved" above.
     cart_link, cart_summary = None, ""
     if resolved and not unresolved:
-        store_id = store_id_for(profile_name)
+        store_id = str(form.get("store_id") or "").strip() or store_id_for(profile_name)
         if store_id is None:
             unresolved.append({
                 "line": "(the whole cart)",
@@ -325,9 +396,14 @@ def build_week(profile_name: str, links: list[str], form: dict) -> dict:
         "cart_link": cart_link,
         "cart_summary": cart_summary,
         "unresolved": unresolved,
+        "product_review": getattr(results, "review", []),
+        "ai": plan.get("ai") if plan else {"status": "not_called", "reason": "No readable recipes."},
+        "coverage": {"requested": dinners, "planned": sum(bool(d.get("recipes")) for d in days),
+                     "unfilled": [d["day"] for d in days if not d.get("recipes")]},
         "budget": {
             "target": target,
             "total": total,
+            "known_subtotal": subtotal,
             "over": over,
             # A target is shown, never a blocker: it cannot stop the week.
             "blocked": False,
@@ -350,7 +426,9 @@ def build_week(profile_name: str, links: list[str], form: dict) -> dict:
         # dinner on purpose, so it is REPORTED here and does not stop the cart.
         # A line that could not be RESOLVED is a different fact, and that one
         # stops the link.
-        "notes": list(plan["notes"]) if plan else [],
+        "notes": (list(plan["notes"]) if plan else []) + [
+            f"{r.title}: the source does not state servings; ingredient amounts stay as published."
+            for r in imported if r.ingredients and not getattr(r, "servings", None)],
         "barred": [{"title": v.title, "reason": v.explain()}
                    for v in (plan["rejected"] if plan else [])],
         "review": [{"title": v.title, "reason": v.explain()}
@@ -366,7 +444,7 @@ def create_app(port: int = 8787) -> ThreadingHTTPServer:
             body = json.dumps(payload).encode()
             self.send_response(status)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "https://meal-to-cart-demo.pages.dev")
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -374,7 +452,7 @@ def create_app(port: int = 8787) -> ThreadingHTTPServer:
 
         def do_OPTIONS(self):                        # noqa: N802
             self.send_response(204)
-            self.send_header("Access-Control-Allow-Origin", "https://meal-to-cart-demo.pages.dev")
+            self.send_header("Access-Control-Allow-Origin", "*")
             self.send_header("Access-Control-Allow-Headers", "Content-Type")
             self.end_headers()
 
@@ -387,8 +465,16 @@ def create_app(port: int = 8787) -> ThreadingHTTPServer:
             self._json({"error": "not found"}, 404)
 
         def do_POST(self):                           # noqa: N802
-            length = int(self.headers.get("Content-Length") or 0)
-            body = json.loads(self.rfile.read(length) or b"{}")
+            try:
+                length = int(self.headers.get("Content-Length") or 0)
+                if not 0 <= length <= 32768:
+                    raise ValueError("Request is too large.")
+                body = json.loads(self.rfile.read(length) or b"{}")
+                if not isinstance(body, dict):
+                    raise ValueError("Send a JSON object.")
+            except (ValueError, TypeError):
+                self._json({"error": "Invalid request: send a JSON object up to 32 KB."}, 400)
+                return
             if self.path.startswith("/import"):
                 url = str(body.get("url") or "").strip()
                 if not url:
@@ -405,8 +491,30 @@ def create_app(port: int = 8787) -> ThreadingHTTPServer:
                 self._json(save_profile(body.get("profile", "demo"), body.get("form", {})))
                 return
             if self.path.startswith("/plan"):
-                self._json(build_week(body.get("profile", "demo"),
-                                      body.get("links", []), body.get("form", {})))
+                try:
+                    links, form = body.get("links", []), body.get("form", {})
+                    if not isinstance(links, list) or not isinstance(form, dict) or len(links) > 12:
+                        raise ValueError("Use at most 12 links and one preferences card.")
+                    if not 1 <= int(form.get("dinners", 5)) <= 7 or not 1 <= int(form.get("servings", 2)) <= 10:
+                        raise ValueError("Choose 1–7 dinners and 1–10 servings.")
+                    if len(str(form.get("week_brief") or "")) > 800:
+                        raise ValueError("Keep your week preferences under 800 characters.")
+                    for key in ("allergies", "dislikes"):
+                        if key in form and (not isinstance(form[key], list) or len(form[key]) > 20
+                            or any(not isinstance(w, str) or len(w) > 80 for w in form[key])):
+                            raise ValueError("Use a short list of food exclusions.")
+                    if form.get("product_choices") and not isinstance(form["product_choices"], dict):
+                        raise ValueError("Invalid product choices.")
+                    store = str(form.get("store_id") or "").strip()
+                    if store and (not store.isdigit() or len(store) > 8):
+                        raise ValueError("Walmart store ID must be digits.")
+                    self._json(build_week(body.get("profile", "demo"), links, form))
+                except RankingError as exc:
+                    self._json({"error": str(exc)}, 503)
+                except (ValueError, TypeError, profile.UnknownProfile) as exc:
+                    self._json({"error": str(exc)}, 400)
+                except Exception:
+                    self._json({"error": "The build did not finish. No completed cart was returned; try again."}, 500)
                 return
             self._json({"error": "not found"}, 404)
 

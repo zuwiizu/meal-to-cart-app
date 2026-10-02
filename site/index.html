@@ -73,7 +73,7 @@
       <p class="beat-num" aria-hidden="true"><span>2</span></p>
       <div class="beat-body">
         <h2 id="week-h">Tell us about your week</h2>
-        <p class="lead">One card, five answers. No account, nothing to install, and no step two.</p>
+        <p class="lead">Tell us what this week needs. No account or installation.</p>
 
         <div class="card">
           <div class="card-group">
@@ -86,12 +86,12 @@
                   <option value="3">A short week &ndash; 3 dinners</option>
                   <option value="7">Every night &ndash; 7 dinners</option>
                 </select>
-                <p class="hint" id="plan-type-hint">Sets how many dinners get planned.</p>
+                <p class="hint" id="plan-type-hint">Each unique recipe fills one night. Bring at least this many links for a full week.</p>
               </div>
               <div class="field">
                 <label for="servings">Servings</label>
                 <input id="servings" name="servings" type="number" inputmode="numeric" min="1" max="10" step="1" value="2" aria-describedby="servings-hint">
-                <p class="hint" id="servings-hint">Each dinner serves this many.</p>
+                <p class="hint" id="servings-hint">Amounts scale when the source states servings; otherwise its original amounts are kept and flagged.</p>
               </div>
               <div class="field">
                 <label for="budget">Weekly budget target</label>
@@ -110,13 +110,30 @@
               <div class="field">
                 <label for="allergies">Allergies or foods to avoid</label>
                 <input id="allergies" name="allergies" type="text" autocomplete="off" aria-describedby="allergies-hint" placeholder="peanut, sesame&hellip;">
-                <p class="hint" id="allergies-hint">Comma separated. Anything matching comes out of the list and is named in the reasons panel, never removed quietly.</p>
+                <p class="hint" id="allergies-hint">Comma separated. Matching recipes are excluded and named. This checks ingredient words; review source ingredients and product labels for allergies.</p>
               </div>
               <div class="field">
                 <label for="dislikes">Dislikes</label>
                 <input id="dislikes" name="dislikes" type="text" autocomplete="off" aria-describedby="dislikes-hint" placeholder="olives, fennel&hellip;">
                 <p class="hint" id="dislikes-hint">Same treatment as the list above: taken out and named, never hidden.</p>
               </div>
+            </div>
+          </div>
+          <div class="card-group">
+            <h3 class="card-group-title">Let AI choose the order</h3>
+            <div class="field">
+              <label for="week-brief">What would make this week work?</label>
+              <textarea id="week-brief" rows="2" maxlength="800" placeholder="Prefer chicken meals and a mix of vegetables. Save richer dishes for later."></textarea>
+              <p class="hint">Jev scores your eligible recipe titles and ingredients against these preferences on each build. Keep personal information out of this field.</p>
+            </div>
+            <div class="field">
+              <label for="ai-enabled">Use live AI ranking</label>
+              <input id="ai-enabled" type="checkbox" checked>
+            </div>
+            <div class="field">
+              <label for="store-id">Your Walmart store ID (optional)</label>
+              <input id="store-id" type="text" inputmode="numeric" maxlength="8" placeholder="Use your own store for checkout">
+              <p class="hint">Without one, the demo uses its illustrative store. Confirm your store, product sizes and quantities in Walmart before ordering.</p>
             </div>
           </div>
         </div>
@@ -168,7 +185,7 @@
         </div>
       </div>
     </details>
-    <p class="foot-note">The agent does the planning on its own machine, which is why this page holds no account of its own and never checks out. Three files, no framework, no build step &mdash; and it never sends anything anywhere except the one address above.</p>
+    <p class="foot-note">This page sends requests to the agent above. With live AI enabled, the agent sends your week preferences and eligible recipe titles and ingredients to Jev. You review the resulting products and check out in Walmart.</p>
   </footer>
 
 </div>
